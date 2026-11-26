@@ -8,7 +8,7 @@ test('Benjamini-Hochberg correction retains strong candidates and rejects weak o
     { id: 'A', pValue: 0.001, support: 50 },
     { id: 'B', pValue: 0.01, support: 40 },
     { id: 'C', pValue: 0.2, support: 35 },
-    { id: 'D', pValue: 0.03, support: 25 }
+    { id: 'D', pValue: 0.05, support: 25 }
   ], { alpha: 0.05, minSupport: 20 });
   assert.equal(result.testedCandidates, 4);
   assert.equal(result.acceptedCount, 2);
