@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { walkForwardBacktest, sequenceAnalysis } = require('./analytics');
+const { walkForwardBacktest, sequenceAnalysis, volatilityAnalysis } = require('./analytics');
 
 test('walk-forward uses only the preceding window for each evaluation', () => {
   const values = [1, 1, 1, 10, 10, 10, 10, 10, 10, 10, 1, 10];
@@ -62,4 +62,40 @@ test('sequence analysis clamps group size and rejects invalid values', () => {
   assert.equal(sequenceAnalysis([], 1).groupSize, 5);
   assert.equal(sequenceAnalysis([], 500).groupSize, 100);
   assert.throws(() => sequenceAnalysis([{ multiplier: 0 }]), { name: 'TypeError', message: 'items must contain valid multipliers' });
+});
+
+test('volatility analysis compares sequential blocks using IQR and MAD', () => {
+  const values = [
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    1, 1, 1, 10, 1, 10, 1, 10, 1, 10,
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+  ];
+  const result = volatilityAnalysis(values.map(multiplier => ({ multiplier })), 10);
+  assert.equal(result.totalRounds, 30);
+  assert.equal(result.totalBlocks, 3);
+  assert.equal(result.groupSize, 10);
+  assert.equal(result.blocks[0].iqr, 0);
+  assert.equal(result.blocks[0].mad, 0);
+  assert.equal(result.blocks[1].iqr, 4.5);
+  assert.equal(result.blocks[2].iqr, 4.5);
+  assert.equal(result.interpretation, 'descriptive_historical_volatility_not_a_future_prediction');
+  assert.equal(Object.values(result.groups).reduce((sum, group) => sum + group.blocks, 0), 3);
+});
+
+test('volatility analysis handles equal-spread and partial blocks without false tiers', () => {
+  const values = Array.from({ length: 11 }, (_, index) => ({ multiplier: index % 2 ? 2 : 1 }));
+  const result = volatilityAnalysis(values, 5);
+  assert.equal(result.totalBlocks, 3);
+  assert.equal(result.blocks[2].count, 1);
+  assert.equal(result.blocks[2].iqr, 0);
+  assert.equal(result.groups.similar.blocks, 3);
+});
+
+test('volatility analysis clamps group size and rejects invalid multipliers', () => {
+  assert.equal(volatilityAnalysis([], 1).groupSize, 5);
+  assert.equal(volatilityAnalysis([], 500).groupSize, 100);
+  assert.throws(() => volatilityAnalysis([{ multiplier: 0 }]), {
+    name: 'TypeError',
+    message: 'items must contain valid multipliers'
+  });
 });
