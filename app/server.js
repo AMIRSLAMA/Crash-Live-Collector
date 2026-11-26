@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis, outOfSampleTest } = require('./analytics');
+const { dataAudit } = require('./data-audit');
 const port = Number(process.env.PORT || 3000);
 const dataFile = process.env.DATA_FILE || path.join(process.cwd(), 'data', 'rounds.jsonl');
 const MAX_BODY = 1024 * 1024;
@@ -69,6 +70,7 @@ const server=http.createServer(async(req,res)=>{
   }
   if(req.method==='GET'&&url.pathname==='/api/connection'){const live=rounds.filter(x=>x.source==='chrome-extension').slice(-1)[0]||null;const ageMs=live?Math.max(0,Date.now()-new Date(live.recordedAt).getTime()):null;return json(res,200,{connected:ageMs!==null&&ageMs<=120000,lastRoundId:live?.roundId||null,lastRoundAt:live?.recordedAt||null,ageSeconds:ageMs===null?null:Math.floor(ageMs/1000),liveRounds:rounds.filter(x=>x.source==='chrome-extension').length,totalRounds:rounds.length});}
   if(req.method==='GET'&&url.pathname==='/api/rounds'){const limit=Math.min(1000,Math.max(1,Number(url.searchParams.get('limit')||100)));return json(res,200,{rounds:rounds.slice(-limit)});}
+  if(req.method==='GET'&&url.pathname==='/api/data-audit')return json(res,200,dataAudit(rounds));
   if(req.method==='GET'&&url.pathname==='/api/stats')return json(res,200,statsFor(rounds));
   if(req.method==='GET'&&url.pathname==='/api/distribution')return json(res,200,multiplierDistribution(rounds));
   if(req.method==='GET'&&url.pathname==='/api/sequence'){const rawSize=Number(url.searchParams.get('groupSize')||10);return json(res,200,sequenceAnalysis(rounds,Number.isFinite(rawSize)?rawSize:10));}
