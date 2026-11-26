@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { walkForwardBacktest } = require('./analytics');
+const { walkForwardBacktest, sequenceAnalysis } = require('./analytics');
 
 test('walk-forward uses only the preceding window for each evaluation', () => {
   const values = [1, 1, 1, 10, 10, 10, 10, 10, 10, 10, 1, 10];
@@ -42,4 +42,24 @@ test('walk-forward does not produce a score when history is not longer than its 
   assert.equal(result.rollingMae, null);
   assert.equal(result.baselineMae, null);
   assert.equal(result.message, 'insufficient_history');
+});
+
+test('sequence analysis reports transitions, streaks and sequential blocks', () => {
+  const values = [1.2, 1.5, 2.1, 2.5, 1.8, 1.4, 3, 4, 1.7, 2.2, 2.8];
+  const result = sequenceAnalysis(values.map(multiplier => ({ multiplier })), 5);
+  assert.equal(result.totalRounds, 11);
+  assert.equal(result.groupSize, 5);
+  assert.equal(result.sequenceOrder, 'ingestion_order');
+  assert.deepEqual(result.transitions, { below2: { below2: 2, atLeast2: 3 }, atLeast2: { below2: 2, atLeast2: 3 } });
+  assert.deepEqual(result.streaks.current, { category: 'atLeast2', length: 2 });
+  assert.equal(result.streaks.below2.longest, 2);
+  assert.equal(result.blocks.length, 3);
+  assert.equal(result.blocks[0].count, 5);
+  assert.equal(result.blocks[2].count, 1);
+});
+
+test('sequence analysis clamps group size and rejects invalid values', () => {
+  assert.equal(sequenceAnalysis([], 1).groupSize, 5);
+  assert.equal(sequenceAnalysis([], 500).groupSize, 100);
+  assert.throws(() => sequenceAnalysis([{ multiplier: 0 }]), { name: 'TypeError', message: 'items must contain valid multipliers' });
 });
