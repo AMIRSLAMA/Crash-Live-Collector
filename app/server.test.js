@@ -109,3 +109,37 @@ test('sequence endpoint reports transitions, streaks and sequential blocks',asyn
   assert.equal(result.blocks.length,3);
   assert.equal(result.blocks[2].count,1);
 });
+
+test('volatility endpoint compares sequential groups by IQR and MAD', async t => {
+  const base = await startService(t);
+  const values = [
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    1, 1, 1, 10, 1, 10, 1, 10, 1, 10,
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+  ];
+  const inserted = await fetch(base + '/api/rounds', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ rounds: values.map((multiplier, index) => ({ roundId: 'vol-' + index, multiplier })) })
+  });
+  assert.equal(inserted.status, 201);
+  const response = await fetch(base + '/api/volatility?groupSize=10');
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.totalRounds, 30);
+  assert.equal(result.totalBlocks, 3);
+  assert.equal(result.blocks[0].iqr, 0);
+  assert.equal(result.blocks[1].iqr, 4.5);
+  assert.equal(result.interpretation, 'descriptive_historical_volatility_not_a_future_prediction');
+  assert.equal(Object.values(result.groups).reduce((sum, group) => sum + group.blocks, 0), 3);
+});
+
+test('volatility dashboard and API are wired together', async t => {
+  const base = await startService(t);
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /مقارنة فترات الهدوء والتذبذب/);
+  assert.match(html, /loadVolatility/);
+  const result = await (await fetch(base + '/api/volatility')).json();
+  assert.equal(result.totalRounds, 0);
+  assert.equal(result.totalBlocks, 0);
+});
