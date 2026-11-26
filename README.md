@@ -1,42 +1,51 @@
 # Crash-Live-Collector
 
-A clean, isolated Docker service starter for server-side health monitoring and deployment practice.
+An isolated, local-first service for recording round results supplied by the operator and reviewing descriptive historical statistics.
 
-> This starter intentionally provides only a health endpoint and deployment plumbing. It does not connect to game internals, intercept private traffic, collect betting signals, or make predictions.
-
-## Stack
-- Node.js 20
-- Docker Compose
-- GitHub Actions CI
-- Manual, gated SSH deployment workflow
+## Features
+- Arabic RTL dashboard at `/`.
+- Manual round entry and JSON API ingestion.
+- Persistent JSONL storage in a dedicated Docker named volume.
+- Historical median, last-30 median, below-2x / at-least-2x percentages, minimum and maximum.
+- Input validation, duplicate-ID protection, bounded request size and batch size.
+- No game-internal access, private traffic interception, account/session collection, prediction claims or wagering automation.
 
 ## Local run
+Requires Node.js 20+.
 ```bash
-npm install
+npm test
 npm start
 ```
-Open `http://localhost:3000/health` when running directly with npm. With Docker Compose, the service is bound to `127.0.0.1:3038`; check `http://127.0.0.1:3038/health` from the host.
+Open `http://localhost:3000`.
+
+## API
+- `GET /health` — service health.
+- `GET /api/rounds?limit=100` — latest recorded rounds (maximum 1,000).
+- `GET /api/stats` — descriptive statistics.
+- `POST /api/rounds` — add one round or a batch of up to 500.
+
+Example:
+```json
+{"rounds":[{"roundId":"round-001","multiplier":1.45,"occurredAt":"2026-11-26T12:00:00.000Z"},{"roundId":"round-002","multiplier":2.8}]}
+```
+Multiplier must be from 1 to 1,000,000. IDs are generated when omitted; duplicate IDs return HTTP 409.
 
 ## Docker
 ```bash
 docker compose up --build -d
 docker compose ps
-curl http://localhost:3000/health
-docker compose down
+curl http://127.0.0.1:3038/health
 ```
+Dashboard: `http://127.0.0.1:3038`. Data persists in the dedicated `crash_live_data` volume. Stop without deleting data: `docker compose down`.
 
-## GitHub Actions
-- `CI`: runs on pushes and pull requests to `main`.
-- `Deploy (manual)`: workflow_dispatch only. Requires the operator to enter `DEPLOY` as confirmation. No deployment is run automatically.
+## GitHub Actions and deployment
+- CI runs tests and builds the Docker image on pushes and pull requests to `main`.
+- Deployment is manual only and requires the exact confirmation `DEPLOY`.
+- Configure the `production` GitHub Environment and secrets only when ready: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`.
+- Destination is fixed at `/home/amir/crash-live-collector`; Compose project is `crash-live-collector`.
+- SSH host-key checking remains enabled.
 
-## Deployment secrets
-Configure repository Actions secrets only when ready:
-- `DEPLOY_HOST`: server hostname/IP
-- `DEPLOY_USER`: SSH user
-- `DEPLOY_SSH_KEY`: private key for a restricted deployment account
-- `DEPLOY_KNOWN_HOSTS`: pinned SSH host-key entry (never disable host-key checking)
+No deployment has been performed. Keep this project isolated from Hesbah, ROHNY and all other server services.
 
-The deployment workflow is manual (`workflow_dispatch`) and proceeds only when the operator enters `DEPLOY`. It uses strict SSH host-key checking and the fixed destination `/home/amir/crash-live-collector`; it transfers only this repository and runs Compose project `crash-live-collector`. Configure an Actions environment named `production` and the secrets above only when ready. Review the workflow before enabling or running it. No secrets belong in files or commits.
-
-## Isolation
-This project uses its own Compose project and directory. Do not point it at existing Hesbah or ROHNY directories, ports, databases, or volumes.
+## Interpretation
+Statistics describe only the recorded sample. They do not establish a reliable way to predict future random outcomes or guarantee a result.
