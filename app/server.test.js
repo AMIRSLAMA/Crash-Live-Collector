@@ -143,3 +143,33 @@ test('volatility dashboard and API are wired together', async t => {
   assert.equal(result.totalRounds, 0);
   assert.equal(result.totalBlocks, 0);
 });
+
+
+test('predictive test endpoint scores strictly out of sample and exposes an audit trail', async t => {
+  const base = await startService(t);
+  const values = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2.5, 1, 1, 3];
+  const inserted = await fetch(base + '/api/rounds', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ rounds: values.map((multiplier, index) => ({ roundId: 'oos-' + index, multiplier })) })
+  });
+  assert.equal(inserted.status, 201);
+  const response = await fetch(base + '/api/predictive-test?window=10');
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.evaluated, 4);
+  assert.equal(result.recentEvaluations[0].roundIndex, 11);
+  assert.equal(result.recentEvaluations[0].rollingProbabilityBelow2, 0.5);
+  assert.equal(result.recentEvaluations[0].baselineProbabilityBelow2, 0.5);
+  assert.equal(result.assessment, 'descriptive_only_need_at_least_100_evaluations');
+});
+
+test('predictive test dashboard is connected to the new API', async t => {
+  const base = await startService(t);
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /اختبار احتمالات أقل من 2x خارج العينة/);
+  assert.match(html, /runOosTest/);
+  const result = await (await fetch(base + '/api/predictive-test')).json();
+  assert.equal(result.evaluated, 0);
+  assert.equal(result.assessment, 'insufficient_history');
+});
