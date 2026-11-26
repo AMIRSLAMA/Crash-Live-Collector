@@ -191,3 +191,73 @@ function volatilityAnalysis(items, requestedGroupSize = 20) {
 }
 
 module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis };
+
+
+function outOfSampleTest(items, requestedWindow = 30) {
+  const window = Math.min(500, Math.max(10, Number.isFinite(requestedWindow) ? Math.floor(requestedWindow) : 30));
+  if (!Array.isArray(items)) throw new TypeError('items must be an array');
+  const values = items.map(item => Number(item && item.multiplier));
+  if (values.some(value => !Number.isFinite(value) || value < 1)) {
+    throw new TypeError('items must contain valid multipliers');
+  }
+  if (values.length <= window) {
+    return {
+      window, totalRounds: values.length, evaluated: 0,
+      rollingBrier: null, expandingBaselineBrier: null, brierImprovementPercent: null,
+      rollingLogLoss: null, expandingBaselineLogLoss: null,
+      rollingAccuracyPercent: null, expandingBaselineAccuracyPercent: null,
+      averagePredictedBelow2Percent: null, observedBelow2Percent: null,
+      assessment: 'insufficient_history',
+      message: 'out_of_sample_test_requires_more_rounds_than_training_window'
+    };
+  }
+
+  const epsilon = 1e-6;
+  let rollingBrier = 0, baselineBrier = 0, rollingLogLoss = 0, baselineLogLoss = 0;
+  let rollingCorrect = 0, baselineCorrect = 0, predictedProbabilitySum = 0, observedBelow2 = 0;
+  let evaluated = 0;
+  const scoreLogLoss = (p, outcome) => -(outcome ? Math.log(p) : Math.log(1 - p));
+  for (let index = window; index < values.length; index++) {
+    const history = values.slice(index - window, index);
+    const expandingHistory = values.slice(0, index);
+    const rollingProbability = history.filter(value => value < 2).length / history.length;
+    const baselineProbability = expandingHistory.filter(value => value < 2).length / expandingHistory.length;
+    const outcome = values[index] < 2 ? 1 : 0;
+    const rollingP = Math.min(1 - epsilon, Math.max(epsilon, rollingProbability));
+    const baselineP = Math.min(1 - epsilon, Math.max(epsilon, baselineProbability));
+    rollingBrier += (rollingProbability - outcome) ** 2;
+    baselineBrier += (baselineProbability - outcome) ** 2;
+    rollingLogLoss += scoreLogLoss(rollingP, outcome);
+    baselineLogLoss += scoreLogLoss(baselineP, outcome);
+    if ((rollingProbability >= 0.5 ? 1 : 0) === outcome) rollingCorrect++;
+    if ((baselineProbability >= 0.5 ? 1 : 0) === outcome) baselineCorrect++;
+    predictedProbabilitySum += rollingProbability;
+    observedBelow2 += outcome;
+    evaluated++;
+  }
+  const modelBrier = rollingBrier / evaluated;
+  const baseBrier = baselineBrier / evaluated;
+  const improvement = baseBrier === 0 ? null : (baseBrier - modelBrier) / baseBrier * 100;
+  const assessment = evaluated < 100
+    ? 'descriptive_only_need_at_least_100_evaluations'
+    : modelBrier < baseBrier ? 'rolling_model_better_on_this_sample'
+      : modelBrier > baseBrier ? 'expanding_baseline_better_on_this_sample' : 'no_brier_difference_on_this_sample';
+  return {
+    window,
+    totalRounds: values.length,
+    evaluated,
+    rollingBrier: Number(modelBrier.toFixed(6)),
+    expandingBaselineBrier: Number(baseBrier.toFixed(6)),
+    brierImprovementPercent: improvement === null ? null : Number(improvement.toFixed(2)),
+    rollingLogLoss: Number((rollingLogLoss / evaluated).toFixed(6)),
+    expandingBaselineLogLoss: Number((baselineLogLoss / evaluated).toFixed(6)),
+    rollingAccuracyPercent: Number((rollingCorrect / evaluated * 100).toFixed(2)),
+    expandingBaselineAccuracyPercent: Number((baselineCorrect / evaluated * 100).toFixed(2)),
+    averagePredictedBelow2Percent: Number((predictedProbabilitySum / evaluated * 100).toFixed(2)),
+    observedBelow2Percent: Number((observedBelow2 / evaluated * 100).toFixed(2)),
+    assessment,
+    message: 'strict_walk_forward_uses_only_prior_rounds_no_future_data'
+  };
+}
+
+module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis, outOfSampleTest };
