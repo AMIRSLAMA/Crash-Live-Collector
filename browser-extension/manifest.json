@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "Crash Live Collector — Capture",
+  "version": "1.0.0",
+  "description": "Collects completed crash results into your private Crash Live Collector dashboard. No betting automation.",
+  "permissions": [
+    "storage",
+    "downloads",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.1xbet.com/*",
+    "https://*.eg1xbet.com/*",
+    "https://1xlite-11151.pro/*",
+    "https://*.1xlite-11151.pro/*",
+    "https://amirslama.github.io/*",
+    "http://127.0.0.1:3038/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Crash Live Collector"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.1xbet.com/*",
+        "https://*.eg1xbet.com/*",
+        "https://1xlite-11151.pro/*",
+        "https://*.1xlite-11151.pro/*"
+      ],
+      "js": [
+        "inject.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*.1xbet.com/*",
+        "https://*.eg1xbet.com/*",
+        "https://1xlite-11151.pro/*",
+        "https://*.1xlite-11151.pro/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "ISOLATED"
+    },
+    {
+      "matches": [
+        "https://amirslama.github.io/Crash-Flight-Pro/*"
+      ],
+      "js": [
+        "app-bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}
