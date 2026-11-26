@@ -132,3 +132,19 @@ test('out-of-sample recent audit is capped at the latest 50 evaluations', () => 
   assert.equal(result.recentEvaluations[0].roundIndex, 31);
   assert.equal(result.recentEvaluations[49].roundIndex, 80);
 });
+
+
+test('below-2 proportion returns a Wilson interval and handles edge cases', () => {
+  const { below2Confidence } = require('./analytics');
+  const sample = [1.2, 1.8, 2, 3, 1.5].map(multiplier => ({ multiplier }));
+  const result = below2Confidence(sample);
+  assert.equal(result.totalRounds, 5);
+  assert.equal(result.belowThreshold, 3);
+  assert.equal(result.proportion, 0.6);
+  assert.equal(result.method, 'wilson_score');
+  assert.ok(result.confidenceInterval.lower <= result.proportion);
+  assert.ok(result.confidenceInterval.upper >= result.proportion);
+  assert.equal(below2Confidence([]).confidenceInterval, null);
+  assert.throws(() => below2Confidence([{ multiplier: 0 }]), TypeError);
+  assert.throws(() => below2Confidence([], 0), TypeError);
+});
