@@ -52,15 +52,6 @@
       "run_at": "document_start",
       "all_frames": true,
       "world": "ISOLATED"
-    },
-    {
-      "matches": [
-        "https://amirslama.github.io/Crash-Flight-Pro/*"
-      ],
-      "js": [
-        "app-bridge.js"
-      ],
-      "run_at": "document_start"
     }
   ]
 }
