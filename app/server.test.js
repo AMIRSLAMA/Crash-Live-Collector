@@ -30,3 +30,12 @@ test('JSON import rejects a bad batch without saving partial rows',async t=>{
   const stats=await(await fetch(base+'/api/stats')).json();
   assert.equal(stats.count,0);
 });
+
+test('exports recorded history as downloadable CSV',async t=>{
+  const base=await startService(t);
+  await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({roundId:'export-1',multiplier:2.75,occurredAt:'2026-11-20T10:00:00Z'})});
+  const response=await fetch(base+'/api/export.csv');
+  assert.equal(response.status,200);
+  assert.match(response.headers.get('content-type'),/text\/csv/);
+  assert.match(await response.text(),/export-1,2.75,2026-11-20T10:00:00.000Z/);
+});
