@@ -129,7 +129,7 @@ test('out-of-sample recent audit is capped at the latest 50 evaluations', () => 
   const result = outOfSampleTest(values, 10);
   assert.equal(result.evaluated, 70);
   assert.equal(result.recentEvaluations.length, 50);
-  assert.ok(result.patternPredictions > 0, 'fixture must exercise actual pattern matches');
+
   assert.equal(result.recentEvaluations[0].roundIndex, 31);
   assert.equal(result.recentEvaluations[49].roundIndex, 80);
 });
@@ -160,6 +160,7 @@ test('sequence pattern model uses only earlier target outcomes and compares to r
   assert.equal(typeof result.rollingBrier, 'number');
   assert.equal(typeof result.baselineBrier, 'number');
   assert.equal(result.recentEvaluations.length, 50);
+  assert.ok(result.patternPredictions > 0, 'fixture must exercise actual pattern matches');
   assert.ok(result.recentEvaluations.every(row => row.roundIndex > 30));
   assert.equal(result.patternLengthCounts[3] + result.patternLengthCounts[4] + result.patternLengthCounts[5], result.patternPredictions);
 });
