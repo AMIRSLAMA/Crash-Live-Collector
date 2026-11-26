@@ -7,6 +7,7 @@ An isolated, local-first service for recording round results supplied by the ope
 - Manual round entry and JSON API ingestion.
 - Persistent JSONL storage in a dedicated Docker named volume.
 - Historical median, last-30 median, below-2x / at-least-2x percentages, minimum and maximum.
+- Multiplier distribution across six descriptive ranges, compared for all history and the latest 30 / 100 / 500 rounds.
 - Input validation, duplicate-ID protection, bounded request size and batch size.
 - No game-internal access, private traffic interception, account/session collection, prediction claims or wagering automation.
 
@@ -23,6 +24,7 @@ Open `http://localhost:3000`.
 - `GET /api/rounds?limit=100` — latest recorded rounds (maximum 1,000).
 - `GET /api/export.csv` — download the recorded history as CSV.
 - `GET /api/stats` — descriptive statistics.
+- `GET /api/distribution` — multiplier buckets for all recorded rounds and the latest 30, 100 and 500 rounds, with counts, percentages and medians. Shorter histories use the available rows.
 - `GET /api/backtest?window=30` — walk-forward historical evaluation: compares a rolling-window median against a fixed initial-window median and reports mean absolute error plus below-2x classification accuracy. Requires more rounds than the selected window (10–500).
 - `POST /api/rounds` — add one round or a batch of up to 500.
 - `POST /api/import` — import CSV (`roundId,multiplier,occurredAt`) or JSON (array / `{ rounds: [...] }`), up to 500 rows and 1 MiB.
