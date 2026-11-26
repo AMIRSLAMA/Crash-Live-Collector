@@ -148,3 +148,33 @@ test('below-2 proportion returns a Wilson interval and handles edge cases', () =
   assert.throws(() => below2Confidence([{ multiplier: 0 }]), TypeError);
   assert.throws(() => below2Confidence([], 0), TypeError);
 });
+
+test('sequence pattern model uses only earlier target outcomes and compares to rolling baseline', () => {
+  const { sequencePatternTest } = require('./analytics');
+  const values = Array.from({ length: 110 }, (_, i) => ({ multiplier: i % 6 < 3 ? 1.5 : 2.5 }));
+  const result = sequencePatternTest(values, 30);
+  assert.equal(result.evaluated, 80);
+  assert.equal(result.window, 30);
+  assert.equal(typeof result.rollingBrier, 'number');
+  assert.equal(typeof result.baselineBrier, 'number');
+  assert.equal(result.recentEvaluations.length, 50);
+  assert.ok(result.recentEvaluations.every(row => row.roundIndex > 30));
+  assert.equal(result.patternLengthCounts[3] + result.patternLengthCounts[4] + result.patternLengthCounts[5], result.patternPredictions);
+});
+
+test('sequence pattern test does not leak changed future rounds into earlier predictions', () => {
+  const { sequencePatternTest } = require('./analytics');
+  const values = Array.from({ length: 90 }, (_, i) => ({ multiplier: i % 7 < 4 ? 1.3 : 2.4 }));
+  const first = sequencePatternTest(values, 30);
+  const extended = values.concat(Array.from({ length: 15 }, (_, i) => ({ multiplier: i % 2 ? 8 : 1.1 })));
+  const second = sequencePatternTest(extended, 30);
+  const select = rows => rows.filter(row => row.roundIndex >= 46 && row.roundIndex <= 55);
+  assert.deepEqual(select(first.recentEvaluations), select(second.recentEvaluations));
+});
+
+test('sequence pattern test validates parameters and handles insufficient history', () => {
+  const { sequencePatternTest } = require('./analytics');
+  assert.equal(sequencePatternTest(Array.from({ length: 30 }, () => ({ multiplier: 2 })), 30).evaluated, 0);
+  assert.throws(() => sequencePatternTest([], 30, 1), TypeError);
+  assert.throws(() => sequencePatternTest([{ multiplier: 0 }], 30), TypeError);
+});

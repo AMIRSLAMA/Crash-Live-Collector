@@ -232,3 +232,27 @@ test('proportion confidence endpoint returns Wilson interval for sample',async t
   assert.ok(result.confidenceInterval.lowerPercent<60);
   assert.ok(result.confidenceInterval.upperPercent>60);
 });
+
+test('sequence-pattern endpoint compares walk-forward pattern matches with a rolling baseline', async t => {
+  const base = await startService(t);
+  const values = Array.from({ length: 85 }, (_, i) => i % 6 < 3 ? 1.4 : 2.6);
+  const inserted = await fetch(base + '/api/rounds', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rounds: values.map((multiplier, index) => ({ roundId: 'pattern-' + index, multiplier })) }) });
+  assert.equal(inserted.status, 201);
+  const result = await (await fetch(base + '/api/sequence-pattern-test?window=30')).json();
+  assert.equal(result.evaluated, 55);
+  assert.equal(result.window, 30);
+  assert.equal(typeof result.rollingBrier, 'number');
+  assert.equal(typeof result.baselineBrier, 'number');
+  assert.match(result.message, /strict_walk_forward/);
+});
+
+test('sequence-pattern dashboard is wired to the endpoint', async t => {
+  const base = await startService(t);
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /محرك مقارنة الأنماط/);
+  assert.match(html, /runPatternTest/);
+  assert.match(html, /patternAudit/);
+  const result = await (await fetch(base + '/api/sequence-pattern-test')).json();
+  assert.equal(result.evaluated, 0);
+  assert.equal(result.assessment, 'insufficient_history');
+});
