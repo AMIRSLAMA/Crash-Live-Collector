@@ -87,5 +87,25 @@ test('dashboard includes the descriptive distribution panel',async t=>{
   const base=await startService(t);
   const html=await(await fetch(base+'/')).text();
   assert.match(html,/توزيع المضاعفات ومقارنة الفترات/);
-  assert.match(html,/loadDistribution/);
+  assert.match(html,/loadDistribution/);assert.match(html,/تسلسل الجولات والاستمراريات/);assert.match(html,/loadSequence/);
+});
+
+test('sequence endpoint reports transitions, streaks and sequential blocks',async t=>{
+  const base=await startService(t);
+  const values=[1.2,1.5,2.1,2.5,1.8,1.4,3,4,1.7,2.2,2.8];
+  const inserted=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rounds:values.map((multiplier,index)=>({roundId:'seq-'+index,multiplier}))})});
+  assert.equal(inserted.status,201);
+  const response=await fetch(base+'/api/sequence?groupSize=5');
+  assert.equal(response.status,200);
+  const result=await response.json();
+  assert.equal(result.totalRounds,11);
+  assert.equal(result.groupSize,5);
+  assert.equal(result.transitions.below2.below2,2);
+  assert.equal(result.transitions.below2.atLeast2,3);
+  assert.equal(result.transitions.atLeast2.below2,2);
+  assert.equal(result.transitions.atLeast2.atLeast2,3);
+  assert.deepEqual(result.streaks.current,{category:'atLeast2',length:2});
+  assert.equal(result.streaks.below2.longest,2);
+  assert.equal(result.blocks.length,3);
+  assert.equal(result.blocks[2].count,1);
 });
