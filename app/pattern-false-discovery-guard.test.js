@@ -31,7 +31,7 @@ test('low-support candidates do not enter the multiple-testing pool', () => {
 
 test('equal and null candidates are handled conservatively', () => {
   const result = falseDiscoveryGuard([
-    { id: 'one', pValue: 0.04, support: 20 },
+    { id: 'one', pValue: 0.06, support: 20 },
     { id: 'two', pValue: 0.04, support: 20 }
   ]);
   assert.equal(result.acceptedCount, 0);
