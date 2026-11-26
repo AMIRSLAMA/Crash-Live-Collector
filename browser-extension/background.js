@@ -6,7 +6,7 @@ const COLLECTOR_URL="http://127.0.0.1:3038/api/rounds";
 async function forwardCompletedRound(event){
  if(event?.target!=="OnCrash"||typeof event.f!=="number"||!Number.isFinite(event.f)||event.f<1)return;
  if(event.l===undefined||event.l===null||String(event.l).length===0)return;
- const payload={roundId:String(event.l).slice(0,120),multiplier:event.f};
+ const payload={roundId:String(event.l).slice(0,120),multiplier:event.f,source:'chrome-extension'};
  if(typeof event.ts==="number"&&Number.isFinite(event.ts)&&event.ts>0){
   const stamp=event.ts>1e12?event.ts:event.ts*1000;
   const date=new Date(stamp);
@@ -92,4 +92,5 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
  if(Array.isArray(event.shape))record.shape=event.shape.slice(0,120).filter(x=>typeof x==="string"&&x.length<=160&&/^[a-zA-Z0-9_$.[\]:_-]+$/.test(x));
  pendingRecords.push(record);
  scheduleFlush();
+ if(event.target==="OnCrash")forwardCompletedRound(event).catch(()=>{});
 });
