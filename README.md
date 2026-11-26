@@ -23,12 +23,13 @@ Open `http://localhost:3000`.
 - `GET /api/rounds?limit=100` — latest recorded rounds (maximum 1,000).
 - `GET /api/stats` — descriptive statistics.
 - `POST /api/rounds` — add one round or a batch of up to 500.
+- `POST /api/import` — import CSV (`roundId,multiplier,occurredAt`) or JSON (array / `{ rounds: [...] }`), up to 500 rows and 1 MiB.
 
 Example:
 ```json
 {"rounds":[{"roundId":"round-001","multiplier":1.45,"occurredAt":"2026-11-26T12:00:00.000Z"},{"roundId":"round-002","multiplier":2.8}]}
 ```
-Multiplier must be from 1 to 1,000,000. IDs are generated when omitted; duplicate IDs return HTTP 409.
+Multiplier must be from 1 to 1,000,000. IDs are generated when omitted; duplicate IDs return HTTP 409. Imports validate the complete batch before writing, so invalid or duplicate batches are rejected without partial insertion. The dashboard includes a file picker for CSV and JSON imports.
 
 ## Docker
 ```bash
