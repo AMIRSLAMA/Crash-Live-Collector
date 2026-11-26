@@ -173,3 +173,47 @@ test('predictive test dashboard is connected to the new API', async t => {
   assert.equal(result.evaluated, 0);
   assert.equal(result.assessment, 'insufficient_history');
 });
+
+
+test('connection status tracks only recent rounds forwarded by the bundled extension', async t => {
+  const base = await startService(t);
+  let status = await (await fetch(base + '/api/connection')).json();
+  assert.equal(status.connected, false);
+  assert.equal(status.liveRounds, 0);
+  await fetch(base + '/api/rounds', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ roundId: 'manual-only', multiplier: 2.1 })
+  });
+  status = await (await fetch(base + '/api/connection')).json();
+  assert.equal(status.connected, false);
+  await fetch(base + '/api/rounds', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ roundId: 'extension-round-1', multiplier: 1.87, source: 'chrome-extension' })
+  });
+  status = await (await fetch(base + '/api/connection')).json();
+  assert.equal(status.connected, true);
+  assert.equal(status.lastRoundId, 'extension-round-1');
+  assert.equal(status.liveRounds, 1);
+});
+
+test('dashboard includes the integrated extension connection page', async t => {
+  const base = await startService(t);
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /الاتصال وإضافة المتصفح/);
+  assert.match(html, /collectorConnection/);
+  assert.match(html, /تحميل حزمة الإضافة ZIP/);
+  assert.match(html, /refreshConnection/);
+});
+
+test('bundled Chrome extension is Manifest V3 and forwards completed results only', () => {
+  const extensionDir = path.join(__dirname, '..', 'browser-extension');
+  const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
+  const background = fs.readFileSync(path.join(extensionDir, 'background.js'), 'utf8');
+  assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.background.service_worker, 'background.js');
+  assert.ok(manifest.host_permissions.includes('http://127.0.0.1:3038/*'));
+  assert.match(background, /event\?\.target!==\"OnCrash\"/);
+  assert.match(background, /source/);
+  assert.ok(fs.existsSync(path.join(extensionDir, 'inject.js')));
+  assert.ok(fs.existsSync(path.join(extensionDir, 'content.js')));
+});
