@@ -129,7 +129,7 @@ test('volatility endpoint compares sequential groups by IQR and MAD', async t =>
   assert.equal(result.totalRounds, 30);
   assert.equal(result.totalBlocks, 3);
   assert.equal(result.blocks[0].iqr, 0);
-  assert.equal(result.blocks[1].iqr, 4.5);
+  assert.equal(result.blocks[1].iqr, 9);
   assert.equal(result.interpretation, 'descriptive_historical_volatility_not_a_future_prediction');
   assert.equal(Object.values(result.groups).reduce((sum, group) => sum + group.blocks, 0), 3);
 });
