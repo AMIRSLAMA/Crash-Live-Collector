@@ -168,7 +168,7 @@ test('sequence pattern test does not leak changed future rounds into earlier pre
   const first = sequencePatternTest(values, 30);
   const extended = values.concat(Array.from({ length: 15 }, (_, i) => ({ multiplier: i % 2 ? 8 : 1.1 })));
   const second = sequencePatternTest(extended, 30);
-  const select = rows => rows.filter(row => row.roundIndex >= 46 && row.roundIndex <= 55);
+  const select = rows => rows.filter(row => row.roundIndex >= 56 && row.roundIndex <= 65);
   assert.deepEqual(select(first.recentEvaluations), select(second.recentEvaluations));
 });
 
