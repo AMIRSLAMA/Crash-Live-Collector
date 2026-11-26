@@ -64,3 +64,28 @@ test('backtest reports insufficient history without inventing a score',async t=>
   assert.equal(result.rollingMae,null);
   assert.equal(result.message,'insufficient_history');
 });
+
+
+test('distribution endpoint summarizes all rounds and recent windows',async t=>{
+  const base=await startService(t);
+  const values=[1.2,1.8,2,2.5,3.5,5,12];
+  const inserted=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rounds:values.map((multiplier,index)=>({roundId:'dist-'+index,multiplier}))})});
+  assert.equal(inserted.status,201);
+  const response=await fetch(base+'/api/distribution');
+  assert.equal(response.status,200);
+  const result=await response.json();
+  assert.equal(result.total.count,7);
+  assert.equal(result.total.median,2.5);
+  assert.equal(result.total.below2Percent,28.6);
+  assert.deepEqual(result.total.bins.map(bin=>bin.count),[1,1,2,1,1,1]);
+  assert.equal(result.windows[0].count,7);
+  assert.equal(result.windows[1].count,7);
+  assert.equal(result.windows[2].count,7);
+});
+
+test('dashboard includes the descriptive distribution panel',async t=>{
+  const base=await startService(t);
+  const html=await(await fetch(base+'/')).text();
+  assert.match(html,/توزيع المضاعفات ومقارنة الفترات/);
+  assert.match(html,/loadDistribution/);
+});
