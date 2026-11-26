@@ -217,3 +217,18 @@ test('bundled Chrome extension is Manifest V3 and forwards completed results onl
   assert.ok(fs.existsSync(path.join(extensionDir, 'inject.js')));
   assert.ok(fs.existsSync(path.join(extensionDir, 'content.js')));
 });
+
+
+test('proportion confidence endpoint returns Wilson interval for sample',async t=>{
+  const base=await startService(t);
+  const values=[1.2,1.8,2,3,1.5];
+  const added=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rounds:values.map((multiplier,index)=>({roundId:'ci-'+index,multiplier}))})});
+  assert.equal(added.status,201);
+  const result=await(await fetch(base+'/api/proportion-confidence')).json();
+  assert.equal(result.totalRounds,5);
+  assert.equal(result.belowThreshold,3);
+  assert.equal(result.percent,60);
+  assert.equal(result.method,'wilson_score');
+  assert.ok(result.confidenceInterval.lowerPercent<60);
+  assert.ok(result.confidenceInterval.upperPercent>60);
+});

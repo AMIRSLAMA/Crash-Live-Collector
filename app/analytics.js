@@ -264,3 +264,30 @@ function outOfSampleTest(items, requestedWindow = 30) {
 }
 
 module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis, outOfSampleTest };
+
+
+function below2Confidence(items, threshold = 2) {
+  if (!Array.isArray(items)) throw new TypeError('items must be an array');
+  if (!Number.isFinite(threshold) || threshold <= 0) throw new TypeError('threshold must be a positive number');
+  const values = items.map(item => Number(item && item.multiplier));
+  if (values.some(value => !Number.isFinite(value) || value < 1)) throw new TypeError('items must contain valid multipliers');
+  const total = values.length;
+  if (!total) return { totalRounds: 0, belowThreshold: 0, threshold, proportion: null, confidenceLevel: 0.95, confidenceInterval: null, method: 'wilson_score', assumption: 'independent_bernoulli_sample' };
+  const below = values.filter(value => value < threshold).length;
+  const p = below / total;
+  const z = 1.959963984540054;
+  const z2 = z * z;
+  const denominator = 1 + z2 / total;
+  const center = (p + z2 / (2 * total)) / denominator;
+  const halfWidth = z * Math.sqrt((p * (1 - p) / total) + z2 / (4 * total * total)) / denominator;
+  return {
+    totalRounds: total, belowThreshold: below, threshold,
+    proportion: Number(p.toFixed(6)), percent: Number((p * 100).toFixed(2)),
+    confidenceLevel: 0.95,
+    confidenceInterval: { lower: Number(Math.max(0, center - halfWidth).toFixed(6)), upper: Number(Math.min(1, center + halfWidth).toFixed(6)), lowerPercent: Number((Math.max(0, center - halfWidth) * 100).toFixed(2)), upperPercent: Number((Math.min(1, center + halfWidth) * 100).toFixed(2)) },
+    method: 'wilson_score', assumption: 'independent_bernoulli_sample',
+    note: 'Confidence interval describes the observed sample proportion under a binomial assumption; it is not a forecast of the next round.'
+  };
+}
+
+module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis, outOfSampleTest, below2Confidence };
