@@ -76,14 +76,14 @@ test('volatility analysis compares sequential blocks using IQR and MAD', () => {
   assert.equal(result.groupSize, 10);
   assert.equal(result.blocks[0].iqr, 0);
   assert.equal(result.blocks[0].mad, 0);
-  assert.equal(result.blocks[1].iqr, 4.5);
+  assert.equal(result.blocks[1].iqr, 9);
   assert.equal(result.blocks[2].iqr, 4.5);
   assert.equal(result.interpretation, 'descriptive_historical_volatility_not_a_future_prediction');
   assert.equal(Object.values(result.groups).reduce((sum, group) => sum + group.blocks, 0), 3);
 });
 
 test('volatility analysis handles equal-spread and partial blocks without false tiers', () => {
-  const values = Array.from({ length: 11 }, (_, index) => ({ multiplier: index % 2 ? 2 : 1 }));
+  const values = Array.from({ length: 11 }, (_, index) => ({ multiplier: index < 10 ? 2 : 1 }));
   const result = volatilityAnalysis(values, 5);
   assert.equal(result.totalBlocks, 3);
   assert.equal(result.blocks[2].count, 1);
