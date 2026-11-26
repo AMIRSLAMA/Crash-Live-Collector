@@ -235,7 +235,7 @@ test('proportion confidence endpoint returns Wilson interval for sample',async t
 
 test('sequence-pattern endpoint compares walk-forward pattern matches with a rolling baseline', async t => {
   const base = await startService(t);
-  const values = Array.from({ length: 85 }, (_, i) => i % 6 < 3 ? 1.4 : 2.6);
+  const pattern = '1111100000';\n  const values = Array.from({ length: 85 }, (_, i) => pattern[i % pattern.length] === '1' ? 1.4 : 2.6);
   const inserted = await fetch(base + '/api/rounds', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rounds: values.map((multiplier, index) => ({ roundId: 'pattern-' + index, multiplier })) }) });
   assert.equal(inserted.status, 201);
   const result = await (await fetch(base + '/api/sequence-pattern-test?window=30')).json();
