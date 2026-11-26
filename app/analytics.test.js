@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { walkForwardBacktest, sequenceAnalysis, volatilityAnalysis } = require('./analytics');
+const { walkForwardBacktest, sequenceAnalysis, volatilityAnalysis, outOfSampleTest } = require('./analytics');
 
 test('walk-forward uses only the preceding window for each evaluation', () => {
   const values = [1, 1, 1, 10, 10, 10, 10, 10, 10, 10, 1, 10];
@@ -98,4 +98,37 @@ test('volatility analysis clamps group size and rejects invalid multipliers', ()
     name: 'TypeError',
     message: 'items must contain valid multipliers'
   });
+});
+
+
+test('out-of-sample test scores each round using prior history only', () => {
+  const values = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2.5, 1, 1, 3];
+  const result = outOfSampleTest(values.map(multiplier => ({ multiplier })), 10);
+  assert.equal(result.evaluated, 4);
+  assert.equal(result.recentEvaluations[0].roundIndex, 11);
+  assert.equal(result.recentEvaluations[0].rollingProbabilityBelow2, 0.5);
+  assert.equal(result.recentEvaluations[0].baselineProbabilityBelow2, 0.5);
+  assert.equal(result.recentEvaluations[0].actualBelow2, false);
+  assert.equal(result.message, 'strict_walk_forward_uses_only_prior_rounds_no_future_data');
+  assert.equal(result.assessment, 'descriptive_only_need_at_least_100_evaluations');
+});
+
+test('out-of-sample test reports insufficient history and rejects invalid data', () => {
+  const insufficient = outOfSampleTest(Array.from({ length: 10 }, () => ({ multiplier: 2 })), 10);
+  assert.equal(insufficient.evaluated, 0);
+  assert.equal(insufficient.rollingBrier, null);
+  assert.equal(insufficient.assessment, 'insufficient_history');
+  assert.throws(() => outOfSampleTest([{ multiplier: 0 }], 10), {
+    name: 'TypeError',
+    message: 'items must contain valid multipliers'
+  });
+});
+
+test('out-of-sample recent audit is capped at the latest 50 evaluations', () => {
+  const values = Array.from({ length: 80 }, (_, index) => ({ multiplier: index % 3 === 0 ? 1.5 : 2.5 }));
+  const result = outOfSampleTest(values, 10);
+  assert.equal(result.evaluated, 70);
+  assert.equal(result.recentEvaluations.length, 50);
+  assert.equal(result.recentEvaluations[0].roundIndex, 31);
+  assert.equal(result.recentEvaluations[49].roundIndex, 80);
 });
