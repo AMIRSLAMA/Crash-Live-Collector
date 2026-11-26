@@ -2,6 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { walkForwardBacktest } = require('./analytics');
 const port = Number(process.env.PORT || 3000);
 const dataFile = process.env.DATA_FILE || path.join(process.cwd(), 'data', 'rounds.jsonl');
 const MAX_BODY = 1024 * 1024;
@@ -68,6 +69,11 @@ const server=http.createServer(async(req,res)=>{
   }
   if(req.method==='GET'&&url.pathname==='/api/rounds'){const limit=Math.min(1000,Math.max(1,Number(url.searchParams.get('limit')||100)));return json(res,200,{rounds:rounds.slice(-limit)});}
   if(req.method==='GET'&&url.pathname==='/api/stats')return json(res,200,statsFor(rounds));
+  if(req.method==='GET'&&url.pathname==='/api/backtest'){
+    const rawWindow=Number(url.searchParams.get('window')||30);
+    const window=Number.isFinite(rawWindow)?rawWindow:30;
+    return json(res,200,walkForwardBacktest(rounds,window));
+  }
   if(req.method==='POST'&&url.pathname==='/api/import'){
     try{const body=await readBody(req);const csv=String(req.headers['content-type']||'').toLowerCase().includes('text/csv');const inputs=csv?parseCsv(body):(Array.isArray(body)?body:body&&body.rounds);return json(res,201,persistRounds(inputs));}
     catch(error){const status=error.status||(String(error.message).startsWith('duplicate_round_id:')?409:500);return json(res,status,{error:error.status?error.message:(status===409?error.message:'internal_error')});}
