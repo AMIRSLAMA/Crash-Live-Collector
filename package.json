@@ -1,0 +1,14 @@
+{
+  "name": "crash-live-collector-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Isolated health-check service starter",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node app/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
