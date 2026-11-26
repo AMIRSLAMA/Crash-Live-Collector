@@ -23,6 +23,7 @@ Open `http://localhost:3000`.
 - `GET /api/rounds?limit=100` — latest recorded rounds (maximum 1,000).
 - `GET /api/export.csv` — download the recorded history as CSV.
 - `GET /api/stats` — descriptive statistics.
+- `GET /api/backtest?window=30` — walk-forward historical evaluation: compares a rolling-window median against a fixed initial-window median and reports mean absolute error plus below-2x classification accuracy. Requires more rounds than the selected window (10–500).
 - `POST /api/rounds` — add one round or a batch of up to 500.
 - `POST /api/import` — import CSV (`roundId,multiplier,occurredAt`) or JSON (array / `{ rounds: [...] }`), up to 500 rows and 1 MiB.
 
@@ -50,4 +51,4 @@ Dashboard: `http://127.0.0.1:3038`. Data persists in the dedicated `crash_live_d
 No deployment has been performed. Keep this project isolated from Hesbah, ROHNY and all other server services.
 
 ## Interpretation
-Statistics describe only the recorded sample. They do not establish a reliable way to predict future random outcomes or guarantee a result.
+Statistics and walk-forward backtests describe only the supplied historical sample. The backtest evaluates later recorded rounds using earlier history and compares against a simple fixed baseline; it is not a live prediction, does not establish a reliable way to predict future random outcomes, and cannot guarantee a result.
