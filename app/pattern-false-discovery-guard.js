@@ -14,7 +14,7 @@ function falseDiscoveryGuard(candidates, options = {}) {
   const seen = new Set();
   const normalized = candidates.map((candidate, index) => {
     const id = String(candidate && candidate.id != null ? candidate.id : index);
-    if (seen.has(id)) throw new TypeTypeError('candidate ids must be unique');
+    if (seen.has(id)) throw new TypeError('candidate ids must be unique');
     seen.add(id);
     const pValue = Number(candidate && candidate.pValue);
     const support = Number(candidate && candidate.support);
