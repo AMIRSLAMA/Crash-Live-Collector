@@ -101,4 +101,22 @@ function multiplierDistribution(items) {
   };
 }
 
-module.exports = { walkForwardBacktest, multiplierDistribution };
+function sequenceAnalysis(items, requestedGroupSize = 10) {
+  const groupSize = Math.min(100, Math.max(5, Number.isFinite(requestedGroupSize) ? Math.floor(requestedGroupSize) : 10));
+  if (!Array.isArray(items) || items.some(item => !item || !Number.isFinite(Number(item.multiplier)) || Number(item.multiplier) < 1)) throw new TypeError('items must contain valid multipliers');
+  const values = items.map(item => Number(item.multiplier));
+  const labels = values.map(value => value < 2 ? 'below2' : 'atLeast2');
+  const transitions = { below2: { below2: 0, atLeast2: 0 }, atLeast2: { below2: 0, atLeast2: 0 } };
+  for (let i = 1; i < labels.length; i++) transitions[labels[i - 1]][labels[i]]++;
+  const streaks = { below2: [], atLeast2: [] };
+  let current = null, currentLength = 0;
+  for (const label of labels) { if (label === current) currentLength++; else { if (current) streaks[current].push(currentLength); current = label; currentLength = 1; } }
+  if (current) streaks[current].push(currentLength);
+  const summarize = list => ({ count: list.length, longest: list.length ? Math.max(...list) : 0, average: list.length ? Number((list.reduce((sum, n) => sum + n, 0) / list.length).toFixed(2)) : 0 });
+  const blocks = [];
+  for (let start = 0; start < values.length; start += groupSize) { const chunk = values.slice(start, start + groupSize); const below = chunk.filter(value => value < 2).length; blocks.push({ fromRound: start + 1, toRound: start + chunk.length, count: chunk.length, median: Number(median(chunk).toFixed(4)), below2Percent: Number((below / chunk.length * 100).toFixed(1)) }); }
+  const currentLabel = labels.length ? labels[labels.length - 1] : null;
+  return { totalRounds: values.length, threshold: 2, groupSize, sequenceOrder: 'ingestion_order', transitions, streaks: { below2: summarize(streaks.below2), atLeast2: summarize(streaks.atLeast2), current: currentLabel ? { category: currentLabel, length: currentLength } : null }, blocks: blocks.slice(-10) };
+}
+
+module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis };
