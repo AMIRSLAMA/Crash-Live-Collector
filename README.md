@@ -15,7 +15,7 @@ A clean, isolated Docker service starter for server-side health monitoring and d
 npm install
 npm start
 ```
-Open `http://localhost:3000/health`.
+Open `http://localhost:3000/health` when running directly with npm. With Docker Compose, the service is bound to `127.0.0.1:3038`; check `http://127.0.0.1:3038/health` from the host.
 
 ## Docker
 ```bash
@@ -36,7 +36,7 @@ Configure repository Actions secrets only when ready:
 - `DEPLOY_SSH_KEY`: private key for a restricted deployment account
 - `DEPLOY_KNOWN_HOSTS`: pinned SSH host-key entry (never disable host-key checking)
 
-The deployment workflow uses a fixed destination `/home/amir/crash-live-collector`. Review the workflow before enabling or running it. No secrets belong in files or commits.
+The deployment workflow is manual (`workflow_dispatch`) and proceeds only when the operator enters `DEPLOY`. It uses strict SSH host-key checking and the fixed destination `/home/amir/crash-live-collector`; it transfers only this repository and runs Compose project `crash-live-collector`. Configure an Actions environment named `production` and the secrets above only when ready. Review the workflow before enabling or running it. No secrets belong in files or commits.
 
 ## Isolation
 This project uses its own Compose project and directory. Do not point it at existing Hesbah or ROHNY directories, ports, databases, or volumes.
