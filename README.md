@@ -21,6 +21,7 @@ Open `http://localhost:3000`.
 ## API
 - `GET /health` — service health.
 - `GET /api/rounds?limit=100` — latest recorded rounds (maximum 1,000).
+- `GET /api/export.csv` — download the recorded history as CSV.
 - `GET /api/stats` — descriptive statistics.
 - `POST /api/rounds` — add one round or a batch of up to 500.
 - `POST /api/import` — import CSV (`roundId,multiplier,occurredAt`) or JSON (array / `{ rounds: [...] }`), up to 500 rows and 1 MiB.
