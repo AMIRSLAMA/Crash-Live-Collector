@@ -1,41 +1,13 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { spawn } = require('node:child_process');
-const net = require('node:net');
-const path = require('node:path');
-
-async function freePort() {
-  const probe = net.createServer();
-  await new Promise((resolve, reject) => probe.once('error', reject).listen(0, '127.0.0.1', resolve));
-  const port = probe.address().port;
-  await new Promise(resolve => probe.close(resolve));
-  return port;
-}
-
-test('GET /health returns healthy JSON from the running service', async () => {
-  const port = await freePort();
-  const child = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
-    env: { ...process.env, PORT: String(port) },
-    stdio: 'ignore'
-  });
-
-  try {
-    let response;
-    for (let attempt = 0; attempt < 30; attempt++) {
-      try {
-        response = await fetch(`http://127.0.0.1:${port}/health`);
-        break;
-      } catch {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-    assert.ok(response, 'server should start and respond within 3 seconds');
-    assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), {
-      status: 'ok',
-      service: 'crash-live-collector-starter'
-    });
-  } finally {
-    child.kill('SIGTERM');
-  }
-});
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {spawn}=require('node:child_process');
+const net=require('node:net');
+const path=require('node:path');
+const os=require('node:os');
+const fs=require('node:fs');
+async function freePort(){const probe=net.createServer();await new Promise((resolve,reject)=>probe.once('error',reject).listen(0,'127.0.0.1',resolve));const port=probe.address().port;await new Promise(resolve=>probe.close(resolve));return port;}
+async function startService(t){const port=await freePort();const dir=fs.mkdtempSync(path.join(os.tmpdir(),'crash-collector-'));const child=spawn(process.execPath,[path.join(__dirname,'server.js')],{env:{...process.env,PORT:String(port),DATA_FILE:path.join(dir,'rounds.jsonl')},stdio:'ignore'});const base='http://127.0.0.1:'+port;t.after(()=>{child.kill('SIGTERM');fs.rmSync(dir,{recursive:true,force:true});});for(let i=0;i<40;i++){try{const r=await fetch(base+'/health');if(r.ok)return base;}catch{}await new Promise(resolve=>setTimeout(resolve,75));}throw Error('service did not start');}
+test('health endpoint returns healthy JSON',async t=>{const base=await startService(t);const r=await fetch(base+'/health');assert.equal(r.status,200);assert.deepEqual(await r.json(),{status:'ok',service:'crash-live-collector'});});
+test('dashboard is served',async t=>{const base=await startService(t);const r=await fetch(base+'/');assert.equal(r.status,200);assert.match(await r.text(),/Crash Live Collector/);});
+test('rounds are validated, persisted and summarized',async t=>{const base=await startService(t);const add=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rounds:[{roundId:'r1',multiplier:1.5},{roundId:'r2',multiplier:2},{roundId:'r3',multiplier:4.5}]})});assert.equal(add.status,201);assert.equal((await add.json()).inserted,3);const stats=await(await fetch(base+'/api/stats')).json();assert.equal(stats.count,3);assert.equal(stats.median,2);assert.equal(stats.below2Percent,33.3);assert.equal(stats.atLeast2Percent,66.7);const list=await(await fetch(base+'/api/rounds')).json();assert.equal(list.rounds.length,3);assert.equal(list.rounds[0].roundId,'r1');});
+test('rejects invalid and duplicate rounds',async t=>{const base=await startService(t);const invalid=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({multiplier:0})});assert.equal(invalid.status,400);const payload={roundId:'same',multiplier:2};await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const duplicate=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});assert.equal(duplicate.status,409);});
