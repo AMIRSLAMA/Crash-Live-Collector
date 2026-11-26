@@ -129,6 +129,7 @@ test('out-of-sample recent audit is capped at the latest 50 evaluations', () => 
   const result = outOfSampleTest(values, 10);
   assert.equal(result.evaluated, 70);
   assert.equal(result.recentEvaluations.length, 50);
+
   assert.equal(result.recentEvaluations[0].roundIndex, 31);
   assert.equal(result.recentEvaluations[49].roundIndex, 80);
 });
@@ -147,4 +148,39 @@ test('below-2 proportion returns a Wilson interval and handles edge cases', () =
   assert.equal(below2Confidence([]).confidenceInterval, null);
   assert.throws(() => below2Confidence([{ multiplier: 0 }]), TypeError);
   assert.throws(() => below2Confidence([], 0), TypeError);
+});
+
+test('sequence pattern model uses only earlier target outcomes and compares to rolling baseline', () => {
+  const { sequencePatternTest } = require('./analytics');
+  const pattern = '1111100000';
+  const values = Array.from({ length: 110 }, (_, i) => ({ multiplier: pattern[i % pattern.length] === '1' ? 1.5 : 2.5 }));
+  const result = sequencePatternTest(values, 30);
+  assert.equal(result.evaluated, 80);
+  assert.equal(result.window, 30);
+  assert.equal(typeof result.rollingBrier, 'number');
+  assert.equal(typeof result.baselineBrier, 'number');
+  assert.equal(result.recentEvaluations.length, 50);
+  assert.ok(result.patternPredictions > 0, 'fixture must exercise actual pattern matches');
+  assert.ok(result.recentEvaluations.every(row => row.roundIndex > 30));
+  assert.equal(result.patternLengthCounts[3] + result.patternLengthCounts[4] + result.patternLengthCounts[5], result.patternPredictions);
+});
+
+test('sequence pattern test does not leak changed future rounds into earlier predictions', () => {
+  const { sequencePatternTest } = require('./analytics');
+  const pattern = '1111100000';
+  const values = Array.from({ length: 90 }, (_, i) => ({ multiplier: pattern[i % pattern.length] === '1' ? 1.3 : 2.4 }));
+  const first = sequencePatternTest(values, 30);
+  const extended = values.concat(Array.from({ length: 15 }, (_, i) => ({ multiplier: i % 2 ? 8 : 1.1 })));
+  const second = sequencePatternTest(extended, 30);
+  const select = rows => rows.filter(row => row.roundIndex >= 56 && row.roundIndex <= 65);
+  assert.equal(select(first.recentEvaluations).length, 10);
+  assert.ok(select(first.recentEvaluations).some(row => row.usedPattern), 'shared prefix must include matched contexts');
+  assert.deepEqual(select(first.recentEvaluations), select(second.recentEvaluations));
+});
+
+test('sequence pattern test validates parameters and handles insufficient history', () => {
+  const { sequencePatternTest } = require('./analytics');
+  assert.equal(sequencePatternTest(Array.from({ length: 30 }, () => ({ multiplier: 2 })), 30).evaluated, 0);
+  assert.throws(() => sequencePatternTest([], 30, 1), TypeError);
+  assert.throws(() => sequencePatternTest([{ multiplier: 0 }], 30), TypeError);
 });
