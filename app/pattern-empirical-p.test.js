@@ -19,5 +19,5 @@ test('rejects insufficient or invalid null samples and observed score', () => {
   assert.throws(() => empiricalLowerTailP(0, [1, 2, 3]), TypeError);
   assert.throws(() => empiricalLowerTailP(NaN, Array(100).fill(1)), TypeError);
   assert.throws(() => empiricalLowerTailP(0, Array(100).fill(NaN)), TypeError);
-  assert.throws(() => empiricalLowerTailP(0, Array(20).fill(1), { minNullSamples: 10 }), TypeError);
+  assert.throws(() => empiricalLowerTailP(0, Array(9).fill(1), { minNullSamples: 10 }), TypeError);
 });
