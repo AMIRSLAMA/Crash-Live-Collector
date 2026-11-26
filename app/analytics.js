@@ -120,3 +120,74 @@ function sequenceAnalysis(items, requestedGroupSize = 10) {
 }
 
 module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis };
+
+
+function quantile(sorted, probability) {
+  if (!sorted.length) return null;
+  const position = (sorted.length - 1) * probability;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+}
+
+function volatilityAnalysis(items, requestedGroupSize = 20) {
+  const groupSize = Math.min(100, Math.max(5, Number.isFinite(requestedGroupSize) ? Math.floor(requestedGroupSize) : 20));
+  if (!Array.isArray(items) || items.some(item => !item || !Number.isFinite(Number(item.multiplier)) || Number(item.multiplier) < 1)) {
+    throw new TypeError('items must contain valid multipliers');
+  }
+  const values = items.map(item => Number(item.multiplier));
+  const blocks = [];
+  for (let start = 0; start < values.length; start += groupSize) {
+    const chunk = values.slice(start, start + groupSize);
+    const sorted = chunk.slice().sort((x, y) => x - y);
+    const center = median(sorted);
+    const q1 = quantile(sorted, 0.25);
+    const q3 = quantile(sorted, 0.75);
+    const deviations = sorted.map(value => Math.abs(value - center)).sort((x, y) => x - y);
+    const below2 = chunk.filter(value => value < 2).length;
+    blocks.push({
+      fromRound: start + 1,
+      toRound: start + chunk.length,
+      count: chunk.length,
+      median: Number(center.toFixed(4)),
+      q1: Number(q1.toFixed(4)),
+      q3: Number(q3.toFixed(4)),
+      iqr: Number((q3 - q1).toFixed(4)),
+      mad: Number(median(deviations).toFixed(4)),
+      below2Percent: Number((below2 / chunk.length * 100).toFixed(1))
+    });
+  }
+  const spreads = blocks.map(block => block.iqr).sort((x, y) => x - y);
+  const lowThreshold = quantile(spreads, 1 / 3);
+  const highThreshold = quantile(spreads, 2 / 3);
+  for (const block of blocks) {
+    block.volatility = lowThreshold === highThreshold
+      ? 'similar'
+      : block.iqr <= lowThreshold ? 'lower' : block.iqr >= highThreshold ? 'higher' : 'middle';
+  }
+  const categories = ['lower', 'middle', 'higher', 'similar'];
+  const groups = Object.fromEntries(categories.map(category => {
+    const selected = blocks.filter(block => block.volatility === category);
+    const average = key => selected.length ? Number((selected.reduce((sum, block) => sum + block[key], 0) / selected.length).toFixed(4)) : null;
+    return [category, {
+      blocks: selected.length,
+      rounds: selected.reduce((sum, block) => sum + block.count, 0),
+      averageIqr: average('iqr'),
+      averageMad: average('mad'),
+      averageBelow2Percent: average('below2Percent'),
+      medianMultiplier: selected.length ? Number(median(selected.map(block => block.median)).toFixed(4)) : null
+    }];
+  }));
+  return {
+    totalRounds: values.length,
+    groupSize,
+    totalBlocks: blocks.length,
+    thresholds: { lowerIqrMax: lowThreshold, higherIqrMin: highThreshold },
+    groups,
+    blocks: blocks.slice(-20),
+    interpretation: 'descriptive_historical_volatility_not_a_future_prediction'
+  };
+}
+
+module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis };
