@@ -216,6 +216,7 @@ function outOfSampleTest(items, requestedWindow = 30) {
   let rollingBrier = 0, baselineBrier = 0, rollingLogLoss = 0, baselineLogLoss = 0;
   let rollingCorrect = 0, baselineCorrect = 0, predictedProbabilitySum = 0, observedBelow2 = 0;
   let evaluated = 0;
+  const evaluationRows = [];
   const scoreLogLoss = (p, outcome) => -(outcome ? Math.log(p) : Math.log(1 - p));
   for (let index = window; index < values.length; index++) {
     const history = values.slice(index - window, index);
@@ -233,6 +234,7 @@ function outOfSampleTest(items, requestedWindow = 30) {
     if ((baselineProbability >= 0.5 ? 1 : 0) === outcome) baselineCorrect++;
     predictedProbabilitySum += rollingProbability;
     observedBelow2 += outcome;
+    evaluationRows.push({ roundIndex: index + 1, rollingProbabilityBelow2: Number(rollingProbability.toFixed(6)), baselineProbabilityBelow2: Number(baselineProbability.toFixed(6)), actualBelow2: Boolean(outcome), rollingBrier: Number(((rollingProbability - outcome) ** 2).toFixed(6)), baselineBrier: Number(((baselineProbability - outcome) ** 2).toFixed(6)) });
     evaluated++;
   }
   const modelBrier = rollingBrier / evaluated;
@@ -256,6 +258,7 @@ function outOfSampleTest(items, requestedWindow = 30) {
     averagePredictedBelow2Percent: Number((predictedProbabilitySum / evaluated * 100).toFixed(2)),
     observedBelow2Percent: Number((observedBelow2 / evaluated * 100).toFixed(2)),
     assessment,
+    recentEvaluations: evaluationRows.slice(-50),
     message: 'strict_walk_forward_uses_only_prior_rounds_no_future_data'
   };
 }
