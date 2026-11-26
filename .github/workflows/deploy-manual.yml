@@ -1,0 +1,53 @@
+name: Deploy (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type DEPLOY to confirm deployment
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: crash-live-collector-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: ${{ github.event.inputs.confirm == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required secrets
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$HOST" && test -n "$USER" && test -n "$KEY" && test -n "$KNOWN_HOSTS"
+      - name: Configure SSH securely
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Deploy starter service
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$USER@$HOST" 'set -eu
+            mkdir -p /home/amir/crash-live-collector
+            cd /home/amir/crash-live-collector
+            if [ ! -d .git ]; then
+              git clone https://github.com/AMIRSLAMA/Crash-Live-Collector.git .
+            else
+              git fetch origin main
+              git checkout main
+              git pull --ff-only origin main
+            fi
+            docker compose up -d --build
+          '
