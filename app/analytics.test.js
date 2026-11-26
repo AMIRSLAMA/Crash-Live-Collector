@@ -144,6 +144,18 @@ test('below-2 proportion returns a Wilson interval and handles edge cases', () =
   assert.equal(result.method, 'wilson_score');
   assert.ok(result.confidenceInterval.lower <= result.proportion);
   assert.ok(result.confidenceInterval.upper >= result.proportion);
+  assert.equal(result.confidenceInterval.lowerPercent, 23.07);
+  assert.equal(result.confidenceInterval.upperPercent, 88.24);
+  const custom = below2Confidence(sample, 1.5);
+  assert.equal(custom.threshold, 1.5);
+  assert.equal(custom.belowThreshold, 1);
+  assert.equal(custom.proportion, 0.2);
+  const allBelow = below2Confidence([{ multiplier: 1 }, { multiplier: 1.2 }]);
+  assert.equal(allBelow.proportion, 1);
+  assert.equal(allBelow.confidenceInterval.upper, 1);
+  const noneBelow = below2Confidence([{ multiplier: 2 }, { multiplier: 3 }]);
+  assert.equal(noneBelow.proportion, 0);
+  assert.equal(noneBelow.confidenceInterval.lower, 0);
   assert.equal(below2Confidence([]).confidenceInterval, null);
   assert.throws(() => below2Confidence([{ multiplier: 0 }]), TypeError);
   assert.throws(() => below2Confidence([], 0), TypeError);
