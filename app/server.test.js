@@ -39,3 +39,28 @@ test('exports recorded history as downloadable CSV',async t=>{
   assert.match(response.headers.get('content-type'),/text\/csv/);
   assert.match(await response.text(),/export-1,2.75,2026-11-20T10:00:00.000Z/);
 });
+
+
+test('walk-forward backtest evaluates only later rounds against a fixed baseline',async t=>{
+  const base=await startService(t);
+  const values=[1.2,1.5,2.5,3,1.1,1.3,2.2,2.8,1.4,1.6,1.2,3];
+  const inserted=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rounds:values.map((multiplier,index)=>({roundId:'bt-'+index,multiplier}))})});
+  assert.equal(inserted.status,201);
+  const response=await fetch(base+'/api/backtest?window=10');
+  assert.equal(response.status,200);
+  const result=await response.json();
+  assert.equal(result.window,10);
+  assert.equal(result.evaluated,2);
+  assert.equal(typeof result.rollingMae,'number');
+  assert.equal(typeof result.baselineMae,'number');
+  assert.equal(result.message,'historical_backtest_not_a_future_prediction');
+});
+
+test('backtest reports insufficient history without inventing a score',async t=>{
+  const base=await startService(t);
+  const response=await fetch(base+'/api/backtest?window=30');
+  const result=await response.json();
+  assert.equal(result.evaluated,0);
+  assert.equal(result.rollingMae,null);
+  assert.equal(result.message,'insufficient_history');
+});
