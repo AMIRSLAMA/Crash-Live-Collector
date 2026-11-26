@@ -11,3 +11,22 @@ test('health endpoint returns healthy JSON',async t=>{const base=await startServ
 test('dashboard is served',async t=>{const base=await startService(t);const r=await fetch(base+'/');assert.equal(r.status,200);assert.match(await r.text(),/Crash Live Collector/);});
 test('rounds are validated, persisted and summarized',async t=>{const base=await startService(t);const add=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rounds:[{roundId:'r1',multiplier:1.5},{roundId:'r2',multiplier:2},{roundId:'r3',multiplier:4.5}]})});assert.equal(add.status,201);assert.equal((await add.json()).inserted,3);const stats=await(await fetch(base+'/api/stats')).json();assert.equal(stats.count,3);assert.equal(stats.median,2);assert.equal(stats.below2Percent,33.3);assert.equal(stats.atLeast2Percent,66.7);const list=await(await fetch(base+'/api/rounds')).json();assert.equal(list.rounds.length,3);assert.equal(list.rounds[0].roundId,'r1');});
 test('rejects invalid and duplicate rounds',async t=>{const base=await startService(t);const invalid=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({multiplier:0})});assert.equal(invalid.status,400);const payload={roundId:'same',multiplier:2};await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const duplicate=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});assert.equal(duplicate.status,409);});
+
+
+test('imports CSV history in one atomic batch',async t=>{
+  const base=await startService(t);
+  const csv='roundId,multiplier,occurredAt\nold-1,1.75,2026-11-20T10:00:00Z\nold-2,3.25,2026-11-20T10:01:00Z';
+  const response=await fetch(base+'/api/import',{method:'POST',headers:{'content-type':'text/csv'},body:csv});
+  assert.equal(response.status,201);
+  assert.equal((await response.json()).inserted,2);
+  const stats=await(await fetch(base+'/api/stats')).json();
+  assert.equal(stats.count,2);
+  assert.equal(stats.median,2.5);
+});
+test('JSON import rejects a bad batch without saving partial rows',async t=>{
+  const base=await startService(t);
+  const response=await fetch(base+'/api/import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify([{roundId:'good',multiplier:2},{roundId:'bad',multiplier:0}])});
+  assert.equal(response.status,400);
+  const stats=await(await fetch(base+'/api/stats')).json();
+  assert.equal(stats.count,0);
+});
