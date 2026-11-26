@@ -25,7 +25,7 @@ Open `http://localhost:3000`.
 - `GET /api/rounds?limit=100` — latest recorded rounds (maximum 1,000).
 - `GET /api/export.csv` — download the recorded history as CSV.
 - `GET /api/stats` — descriptive statistics.
-- `GET /api/proportion-confidence?threshold=2` — Wilson 95% confidence interval for the observed share below a selected threshold (default 2x). It summarizes sampling uncertainty only, not the next round.
+- `GET /api/proportion-confidence?threshold=2` — Wilson 95% confidence interval for the observed share below a selected threshold (default 2x). It summarizes sampling uncertainty only, not the next round. The endpoint rejects invalid or out-of-range thresholds.
 - `GET /api/data-audit` — record integrity checks: duplicate IDs, timestamp validity, occurrence-time reversals, future timestamps, and gaps between captured rounds. Capture gaps are warnings only and do not prove missing rounds.
 - `GET /api/distribution` — multiplier buckets for all recorded rounds and the latest 30, 100 and 500 rounds, with counts, percentages and medians. Shorter histories use the available rows.
 - `GET /api/sequence?groupSize=10` — transition counts around the descriptive 2x threshold, streak lengths, and summaries for the latest ten sequential blocks. Group size is clamped to 5–100. Sequence order is ingestion/import order, not inferred timestamp order.\n- `GET /api/volatility?groupSize=20` — compares sequential blocks using IQR and MAD, summarizes relative spread groups, and returns the latest 20 blocks. Group size is clamped to 5–100; the classification is descriptive within the recorded sample only.

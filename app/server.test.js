@@ -232,3 +232,6 @@ test('proportion confidence endpoint returns Wilson interval for sample',async t
   assert.ok(result.confidenceInterval.lowerPercent<60);
   assert.ok(result.confidenceInterval.upperPercent>60);
 });
+
+
+test('confidence endpoint rejects invalid thresholds',async t=>{const base=await startService(t);for(const threshold of ['0','-1','nope','1000001']){const response=await fetch(base+'/api/proportion-confidence?threshold='+encodeURIComponent(threshold));assert.equal(response.status,400);assert.deepEqual(await response.json(),{error:'invalid_threshold'});}});
