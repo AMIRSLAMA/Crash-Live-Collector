@@ -232,3 +232,24 @@ test('proportion confidence endpoint returns Wilson interval for sample',async t
   assert.ok(result.confidenceInterval.lowerPercent<60);
   assert.ok(result.confidenceInterval.upperPercent>60);
 });
+
+
+test('confidence dashboard displays Wilson interval metrics and loads endpoint',async t=>{
+ const base=await startService(t);
+ const html=await(await fetch(base+'/')).text();
+ assert.match(html,/نسبة أقل من العتبة وحدود الثقة/);
+ assert.match(html,/ciPercent/);
+ assert.match(html,/loadConfidence/);
+ const result=await(await fetch(base+'/api/proportion-confidence')).json();
+ assert.equal(result.totalRounds,0);
+ assert.equal(result.confidenceInterval,null);
+});
+
+test('confidence endpoint rejects invalid or out-of-range thresholds',async t=>{
+ const base=await startService(t);
+ for(const threshold of ['0','-1','nope','1000001']){
+  const response=await fetch(base+'/api/proportion-confidence?threshold='+encodeURIComponent(threshold));
+  assert.equal(response.status,400);
+  assert.deepEqual(await response.json(),{error:'invalid_threshold'});
+ }
+});
