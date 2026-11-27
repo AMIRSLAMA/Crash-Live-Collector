@@ -10,7 +10,6 @@ function strongFixture() {
 
 test('strict gate requires OOS minimum, all block sensitivity intervals, and FDR pass', () => {
   const candidate = strongFixture();
-  // deterministic null distribution is well above the observed negative score difference
   candidate.nullDifferences = Array.from({ length: 200 }, (_, i) => 0.1 + (i % 5) * 0.001);
   const result = evaluatePatternEvidenceGate([candidate], { replicates: 300, seed: 19 });
   assert.equal(result.candidateCount, 1);
@@ -29,4 +28,17 @@ test('does not pass candidates with short OOS evaluation', () => {
 test('rejects malformed candidate inputs', () => {
   assert.throws(() => evaluatePatternEvidenceGate([{ id: 'bad', rows: [{ patternBrier: 0.1, baselineBrier: 0.2 }], nullDifferences: [] }]), /at least 100 samples/);
   assert.throws(() => evaluatePatternEvidenceGate([], { blockLengths: [5] }), /at least two/);
+});
+
+test('requires unique non-empty candidate identifiers and distinct block lengths', () => {
+  const fixture = strongFixture();
+  assert.throws(() => evaluatePatternEvidenceGate([{ ...fixture, id: '' }]), /non-empty/);
+  assert.throws(() => evaluatePatternEvidenceGate([fixture, { ...fixture }]), /unique/);
+  assert.throws(() => evaluatePatternEvidenceGate([], { blockLengths: [3, 3] }), /distinct positive integers/);
+});
+
+test('rejects invalid paired score ranges and non-integer support', () => {
+  const fixture = strongFixture();
+  assert.throws(() => evaluatePatternEvidenceGate([{ ...fixture, rows: [{ patternBrier: 1.2, baselineBrier: 0.2 }] }), /Brier scores in \[0, 1\]/);
+  assert.throws(() => evaluatePatternEvidenceGate([{ ...fixture, support: 2.5 }]), /non-negative integer/);
 });
