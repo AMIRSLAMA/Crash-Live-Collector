@@ -253,6 +253,8 @@ test('sequence-pattern dashboard is wired to the endpoint', async t => {
   assert.match(html, /محرك مقارنة الأنماط/);
   assert.match(html, /runPatternTest/);
   assert.match(html, /patternAudit/);
+  assert.match(html, /holdoutPanel/);
+  assert.match(html, /runHoldout/);
   const result = await (await fetch(base + '/api/sequence-pattern-test')).json();
   assert.equal(result.evaluated, 0);
   assert.equal(result.assessment, 'insufficient_history');
