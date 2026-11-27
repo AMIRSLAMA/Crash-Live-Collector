@@ -257,3 +257,27 @@ test('sequence-pattern dashboard is wired to the endpoint', async t => {
   assert.equal(result.evaluated, 0);
   assert.equal(result.assessment, 'insufficient_history');
 });
+
+test('holdout discovery API returns separate train/test candidate scores and caveats', async t => {
+  const base = await startService(t);
+  const pattern = '1111100000';
+  const values = Array.from({ length: 120 }, (_, i) => pattern[i % pattern.length] === '1' ? 1.4 : 2.6);
+  const inserted = await fetch(base + '/api/rounds', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ rounds: values.map((multiplier, index) => ({ roundId: 'holdout-' + index, multiplier })) })
+  });
+  assert.equal(inserted.status, 201);
+  const result = await (await fetch(base + '/api/pattern-holdout-discovery')).json();
+  assert.equal(result.trainRounds, 72);
+  assert.equal(result.testRounds, 48);
+  assert.ok(result.candidatesDiscovered > 0);
+  assert.ok(result.results.every(row => row.trainMatches >= 8 && row.testMatches >= 5));
+  assert.match(result.assessment, /exploratory_holdout/);
+});
+
+test('holdout discovery API is explicit about insufficient data', async t => {
+  const base = await startService(t);
+  const result = await (await fetch(base + '/api/pattern-holdout-discovery')).json();
+  assert.equal(result.assessment, 'insufficient_history');
+  assert.equal(result.results.length, 0);
+});
