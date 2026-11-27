@@ -290,4 +290,43 @@ function below2Confidence(items, threshold = 2) {
   };
 }
 
-module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis, outOfSampleTest, below2Confidence };
+module.exports = { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis, outOfSampleTest, below2Confidence, sequencePatternTest };
+
+function sequencePatternTest(items, requestedWindow = 50, minMatches = 8, priorStrength = 10) {
+  if (!Array.isArray(items)) throw new TypeError('items must be an array');
+  if (!Number.isFinite(requestedWindow)) throw new TypeError('window must be finite');
+  if (!Number.isFinite(minMatches) || minMatches < 2) throw new TypeError('minMatches must be at least 2');
+  if (!Number.isFinite(priorStrength) || priorStrength <= 0) throw new TypeError('priorStrength must be positive');
+  const window = Math.min(500, Math.max(30, Math.floor(requestedWindow)));
+  const values = items.map(item => Number(item && item.multiplier));
+  if (values.some(value => !Number.isFinite(value) || value < 1)) throw new TypeError('items must contain valid multipliers');
+  const labels = values.map(value => value < 2 ? 1 : 0);
+  if (values.length <= window) return { window, totalRounds: values.length, evaluated: 0, patternPredictions: 0, rollingBrier: null, baselineBrier: null, brierImprovementPercent: null, rollingLogLoss: null, baselineLogLoss: null, rollingAccuracyPercent: null, baselineAccuracyPercent: null, assessment: 'insufficient_history', recentEvaluations: [], patternLengthCounts: {3:0,4:0,5:0}, message: 'strict_walk_forward_pattern_test_requires_more_rounds_than_window' };
+  const epsilon=1e-6;
+  let modelBrier=0, baseBrier=0, modelLog=0, baseLog=0, modelCorrect=0, baseCorrect=0, patternPredictions=0;
+  const rows=[], patternLengthCounts={3:0,4:0,5:0};
+  for(let i=window;i<values.length;i++){
+    const start=Math.max(0,i-window), historyLabels=labels.slice(start,i);
+    const baseline=historyLabels.reduce((sum,x)=>sum+x,0)/historyLabels.length;
+    let selected=null;
+    for(const length of [3,4,5]){
+      if(i-start<length)continue;
+      const key=labels.slice(i-length,i).join('');
+      let matches=0, below=0;
+      for(let end=start+length-1;end<=i-2;end++){
+        if(labels.slice(end-length+1,end+1).join('')===key){matches++;below+=labels[end+1];}
+      }
+      if(matches>=minMatches)selected={length,key,matches,below,probability:(below+priorStrength*baseline)/(matches+priorStrength)};
+    }
+    const usedPattern=Boolean(selected), probability=usedPattern?selected.probability:baseline, actual=labels[i];
+    const safeP=Math.min(1-epsilon,Math.max(epsilon,probability)), safeBase=Math.min(1-epsilon,Math.max(epsilon,baseline));
+    const brier=(probability-actual)**2, base=(baseline-actual)**2;
+    modelBrier+=brier;baseBrier+=base;modelLog+=-(actual?Math.log(safeP):Math.log(1-safeP));baseLog+=-(actual?Math.log(safeBase):Math.log(1-safeBase));
+    if((probability>=.5?1:0)===actual)modelCorrect++;if((baseline>=.5?1:0)===actual)baseCorrect++;
+    if(usedPattern){patternPredictions++;patternLengthCounts[selected.length]++;}
+    rows.push({roundIndex:i+1,patternLength:usedPattern?selected.length:null,pattern:usedPattern?selected.key:null,patternMatches:usedPattern?selected.matches:0,patternBelow2:usedPattern?selected.below:0,usedPattern,patternProbabilityBelow2:Number(probability.toFixed(6)),baselineProbabilityBelow2:Number(baseline.toFixed(6)),actualBelow2:Boolean(actual),patternBrier:Number(brier.toFixed(6)),baselineBrier:Number(base.toFixed(6))});
+  }
+  const evaluated=rows.length, meanModel=modelBrier/evaluated, meanBase=baseBrier/evaluated;
+  const assessment=evaluated<100?'descriptive_only_need_at_least_100_evaluations':meanModel<meanBase?'pattern_model_better_on_this_sample':meanModel>meanBase?'baseline_better_on_this_sample':'no_brier_difference_on_this_sample';
+  return {window,totalRounds:values.length,evaluated,patternPredictions,rollingBrier:Number(meanModel.toFixed(6)),baselineBrier:Number(meanBase.toFixed(6)),brierImprovementPercent:meanBase===0?null:Number(((meanBase-meanModel)/meanBase*100).toFixed(2)),rollingLogLoss:Number((modelLog/evaluated).toFixed(6)),baselineLogLoss:Number((baseLog/evaluated).toFixed(6)),rollingAccuracyPercent:Number((modelCorrect/evaluated*100).toFixed(2)),baselineAccuracyPercent:Number((baseCorrect/evaluated*100).toFixed(2)),patternLengthCounts,assessment,recentEvaluations:rows.slice(-50),message:'strict_walk_forward_patterns_only_prior_rounds_with_baseline_comparison'};
+}
