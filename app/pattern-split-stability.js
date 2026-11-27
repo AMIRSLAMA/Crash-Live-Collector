@@ -30,10 +30,11 @@ function patternSplitStability(items, options = {}) {
   const results = [...candidates.values()].map(entry => ({
     pattern: entry.pattern, length: entry.length, appearances: entry.appearances, splitsEvaluated: splits.length,
     betterThanBaselineCount: entry.betterThanBaselineCount,
+    recurrenceRate: Number((entry.appearances / splits.length).toFixed(4)),
     meanBrierDifferenceWhenPresent: Number((entry.differences.reduce((a,b)=>a+b,0)/entry.differences.length).toFixed(6)),
     splitDetails: entry.splits
   })).sort((a,b) => b.appearances-a.appearances || a.meanBrierDifferenceWhenPresent-b.meanBrierDifferenceWhenPresent || a.pattern.localeCompare(b.pattern));
-  return { totalRounds: items.length, splits, reports: reports.map(r => ({ trainRounds:r.trainRounds, testRounds:r.testRounds, candidatesDiscovered:r.candidatesDiscovered, candidatesEvaluated:r.candidatesEvaluated })), candidatesTracked: results.length, results:results.slice(0,30), assessment:'descriptive_split_stability_not_confirmatory',
+  return { totalRounds: items.length, splits, reports: reports.map(r => ({ trainRounds:r.trainRounds, testRounds:r.testRounds, candidatesDiscovered:r.candidatesDiscovered, candidatesEvaluated:r.candidatesEvaluated })), candidatesTracked: results.length, results:results.slice(0,30), recurrentCandidates:results.filter(r=>r.appearances>=3).slice(0,20), assessment:'descriptive_split_stability_not_confirmatory',
     caveats:['The chronological test windows overlap and are not independent replicates.', 'Candidate selection is repeated across splits; the reported best patterns are selection-biased.', 'This audit measures stability only and does not establish predictive edge or future performance.'] };
 }
 module.exports = { patternSplitStability };
