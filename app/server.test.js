@@ -232,3 +232,69 @@ test('proportion confidence endpoint returns Wilson interval for sample',async t
   assert.ok(result.confidenceInterval.lowerPercent<60);
   assert.ok(result.confidenceInterval.upperPercent>60);
 });
+
+test('sequence-pattern endpoint compares walk-forward pattern matches with a rolling baseline', async t => {
+  const base = await startService(t);
+  const pattern = '1111100000';
+  const values = Array.from({ length: 85 }, (_, i) => pattern[i % pattern.length] === '1' ? 1.4 : 2.6);
+  const inserted = await fetch(base + '/api/rounds', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rounds: values.map((multiplier, index) => ({ roundId: 'pattern-' + index, multiplier })) }) });
+  assert.equal(inserted.status, 201);
+  const result = await (await fetch(base + '/api/sequence-pattern-test?window=30')).json();
+  assert.equal(result.evaluated, 55);
+  assert.equal(result.window, 30);
+  assert.equal(typeof result.rollingBrier, 'number');
+  assert.equal(typeof result.baselineBrier, 'number');
+  assert.match(result.message, /strict_walk_forward/);
+});
+
+test('sequence-pattern dashboard is wired to the endpoint', async t => {
+  const base = await startService(t);
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /محرك مقارنة الأنماط/);
+  assert.match(html, /runPatternTest/);
+  assert.match(html, /patternAudit/);
+  assert.match(html, /holdoutPanel/);
+  assert.match(html, /runHoldout/);
+  const result = await (await fetch(base + '/api/sequence-pattern-test')).json();
+  assert.equal(result.evaluated, 0);
+  assert.equal(result.assessment, 'insufficient_history');
+});
+
+test('holdout discovery API returns separate train/test candidate scores and caveats', async t => {
+  const base = await startService(t);
+  const pattern = '1111100000';
+  const values = Array.from({ length: 120 }, (_, i) => pattern[i % pattern.length] === '1' ? 1.4 : 2.6);
+  const inserted = await fetch(base + '/api/rounds', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ rounds: values.map((multiplier, index) => ({ roundId: 'holdout-' + index, multiplier })) })
+  });
+  assert.equal(inserted.status, 201);
+  const result = await (await fetch(base + '/api/pattern-holdout-discovery')).json();
+  assert.equal(result.trainRounds, 72);
+  assert.equal(result.testRounds, 48);
+  assert.ok(result.candidatesDiscovered > 0);
+  assert.ok(result.results.every(row => row.trainMatches >= 8 && row.testMatches >= 5));
+  assert.match(result.assessment, /exploratory_holdout/);
+});
+
+test('holdout discovery API is explicit about insufficient data', async t => {
+  const base = await startService(t);
+  const result = await (await fetch(base + '/api/pattern-holdout-discovery')).json();
+  assert.equal(result.assessment, 'insufficient_history');
+  assert.equal(result.results.length, 0);
+});
+
+test('pattern split stability endpoint exposes repeat split audit and caveats',async t=>{
+ const base=await startService(t);
+ const pattern='1111100000';
+ const values=Array.from({length:180},(_,i)=>pattern[i%pattern.length]==='1'?1.4:2.6);
+ const inserted=await fetch(base+'/api/rounds',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rounds:values.map((multiplier,index)=>({roundId:'stability-'+index,multiplier}))})});
+ assert.equal(inserted.status,201);
+ const response=await fetch(base+'/api/pattern-split-stability');
+ assert.equal(response.status,200);
+ const report=await response.json();
+ assert.deepEqual(report.splits,[0.5,0.6,0.7,0.8]);
+ assert.equal(report.reports.length,4);
+ assert.equal(report.assessment,'descriptive_split_stability_not_confirmatory');
+ assert.ok(report.caveats.some(note=>note.includes('overlap')));
+});
