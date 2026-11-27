@@ -28,7 +28,8 @@ function patternSplitStability(items, options = {}) {
     }
   }
   const results = [...candidates.values()].map(entry => ({
-    pattern: entry.pattern, length: entry.length, appearances: entry.appearances, splitsEvaluated: splits.length,
+    pattern: entry.pattern, length: entry.length, appearances: entry.appearances,
+    splitsEvaluated: entry.splits.length, totalSplits: splits.length,
     betterThanBaselineCount: entry.betterThanBaselineCount,
     recurrenceRate: Number((entry.appearances / splits.length).toFixed(4)),
     meanBrierDifferenceWhenPresent: Number((entry.differences.reduce((a,b)=>a+b,0)/entry.differences.length).toFixed(6)),
