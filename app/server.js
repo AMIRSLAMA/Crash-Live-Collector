@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { walkForwardBacktest, multiplierDistribution, sequenceAnalysis, volatilityAnalysis, outOfSampleTest, sequencePatternTest } = require('./analytics');
+const { patternHoldoutDiscovery } = require('./pattern-holdout-discovery');
 const { dataAudit } = require('./data-audit');
 const { below2Confidence } = require('./analytics');
 const port = Number(process.env.PORT || 3000);
@@ -78,6 +79,7 @@ const server=http.createServer(async(req,res)=>{
   if(req.method==='GET'&&url.pathname==='/api/sequence'){const rawSize=Number(url.searchParams.get('groupSize')||10);return json(res,200,sequenceAnalysis(rounds,Number.isFinite(rawSize)?rawSize:10));}
   if(req.method==='GET'&&url.pathname==='/api/volatility'){const rawSize=Number(url.searchParams.get('groupSize')||20);return json(res,200,volatilityAnalysis(rounds,Number.isFinite(rawSize)?rawSize:20));}
   if(req.method==='GET'&&url.pathname==='/api/sequence-pattern-test'){const rawWindow=Number(url.searchParams.get('window')||50);return json(res,200,sequencePatternTest(rounds,Number.isFinite(rawWindow)?rawWindow:50));}
+  if(req.method==='GET'&&url.pathname==='/api/pattern-holdout-discovery'){const rawSplit=Number(url.searchParams.get('trainFraction')||0.6);const rawTrain=Number(url.searchParams.get('minTrainSupport')||8);const rawTest=Number(url.searchParams.get('minTestSupport')||5);return json(res,200,patternHoldoutDiscovery(rounds,{trainFraction:Number.isFinite(rawSplit)?rawSplit:0.6,minTrainSupport:Number.isFinite(rawTrain)?rawTrain:8,minTestSupport:Number.isFinite(rawTest)?rawTest:5}));}
   if(req.method==='GET'&&url.pathname==='/api/predictive-test'){const rawWindow=Number(url.searchParams.get('window')||30);return json(res,200,outOfSampleTest(rounds,Number.isFinite(rawWindow)?rawWindow:30));}
   if(req.method==='GET'&&url.pathname==='/api/backtest'){
     const rawWindow=Number(url.searchParams.get('window')||30);
