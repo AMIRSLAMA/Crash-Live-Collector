@@ -5,7 +5,7 @@ const { evaluatePatternEvidenceGate } = require('./pattern-evidence-gate');
 
 function strongFixture() {
   const rows = Array.from({ length: 120 }, (_, i) => ({ patternBrier: 0.12 + (i % 8) * 0.001, baselineBrier: 0.32 + (i % 8) * 0.001 }));
-  return { id: 'fixture-strong', rows, support: 120, nullDifferences: Array.from({ length: 200 }, () => 0.08 + Math.random() * 0.02) };
+  return { id: 'fixture-strong', rows, support: 120, nullDifferences: Array.from({ length: 200 }, (_, i) => 0.08 + (i % 10) * 0.001) };
 }
 
 test('strict gate requires OOS minimum, all block sensitivity intervals, and FDR pass', () => {
@@ -27,6 +27,6 @@ test('does not pass candidates with short OOS evaluation', () => {
 });
 
 test('rejects malformed candidate inputs', () => {
-  assert.throws(() => evaluatePatternEvidenceGate([{ id: 'bad', rows: [], nullDifferences: [] }]), /at least 100 samples/);
+  assert.throws(() => evaluatePatternEvidenceGate([{ id: 'bad', rows: [{ patternBrier: 0.1, baselineBrier: 0.2 }], nullDifferences: [] }]), /at least 100 samples/);
   assert.throws(() => evaluatePatternEvidenceGate([], { blockLengths: [5] }), /at least two/);
 });
