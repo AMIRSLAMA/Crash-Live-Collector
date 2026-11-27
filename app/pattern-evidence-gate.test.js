@@ -39,6 +39,6 @@ test('requires unique non-empty candidate identifiers and distinct block lengths
 
 test('rejects invalid paired score ranges and non-integer support', () => {
   const fixture = strongFixture();
-  assert.throws(() => evaluatePatternEvidenceGate([{ ...fixture, rows: [{ patternBrier: 1.2, baselineBrier: 0.2 }] }), /Brier scores in \[0, 1\]/);
+  assert.throws(() => evaluatePatternEvidenceGate([{ ...fixture, rows: [{ patternBrier: 1.2, baselineBrier: 0.2 }] }]), /Brier scores in \[0, 1\]/);
   assert.throws(() => evaluatePatternEvidenceGate([{ ...fixture, support: 2.5 }]), /non-negative integer/);
 });
