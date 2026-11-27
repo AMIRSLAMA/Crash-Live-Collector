@@ -11,7 +11,9 @@ test('split stability audit runs predeclared chronological splits and summarizes
  assert.ok(report.reports.every(r=>r.trainRounds+r.testRounds===180));
  assert.equal(report.assessment,'descriptive_split_stability_not_confirmatory');
  assert.ok(report.results.every(r=>r.appearances>=1&&r.appearances<=4));
- assert.ok(report.results.every(r=>r.splitsEvaluated===4));\n assert.ok(report.consistentlyBetterCandidates.every(r=>r.appearances>=3&&r.betterThanBaselineCount>=3&&r.meanBrierDifferenceWhenPresent<0));\n assert.ok(report.recurrentCandidates.every(r=>r.appearances>=3));
+ assert.ok(report.results.every(r=>r.splitsEvaluated===4));
+ assert.ok(report.consistentlyBetterCandidates.every(r=>r.appearances>=3&&r.betterThanBaselineCount>=3&&r.meanBrierDifferenceWhenPresent<0));
+ assert.ok(report.recurrentCandidates.every(r=>r.appearances>=3));
 });
 
 test('split stability rejects malformed split controls and handles sparse data',()=>{
